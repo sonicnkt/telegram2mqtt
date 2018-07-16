@@ -1,0 +1,47 @@
+## Telegram Voice / Audio 
+
+##################################################
+## Sensors
+##################################################
+
+sensor:
+  - platform: mqtt
+    name: "telegram_msg_new"
+    state_topic: "telebot"
+    value_template: '{{ value_json.new }}'
+  - platform: mqtt
+    name: "telegram_msg_type"
+    state_topic: "telebot"
+    value_template: '{{ value_json.type }}'
+  - platform: mqtt
+    name: "telegram_msg_user"
+    state_topic: "telebot"
+    value_template: '{{ value_json.user }}'
+  - platform: mqtt
+    name: "telegram_msg_content"
+    state_topic: "telebot"
+    value_template: '{{ value_json.content }}'
+
+
+##################################################
+## Automations
+##################################################          
+          
+automation:
+  - alias: Play Telegram Voice Message on Kodi
+    trigger:
+      platform: state
+      entity_id: sensor.telegram_msg_new
+      to: "true"
+    condition:
+      - condition: state
+        entity_id: sensor.telegram_msg_type
+        state: 'voice'
+    action:
+      - service: media_player.play_media
+        data:
+          entity_id: media_player.kodi
+          media_content_type: audio
+        data_template:
+          media_content_id: >
+            {{states('sensor.telegram_msg_content')}}
