@@ -8,10 +8,21 @@ from telegram.ext import MessageHandler, Filters
 from telegram.ext import Updater
 import paho.mqtt.client as mqtt
 from threading import Thread
-from Queue import Queue
+try:
+    import queue as Queue # using Python 3
+except ImportError:
+    import Queue   # falls back to import from Python 2
 
 import logging, time, sys, yaml, os
-import SimpleHTTPServer, SocketServer
+
+try:
+    import http.server as SimpleHTTPServer # using Python 3
+except ImportError:
+    import SimpleHTTPServer   # falls back to import from Python 2
+try:
+    import socketserver as SocketServer # using Python 3
+except ImportError:
+    import SocketServer   # falls back to import from Python 2
 
 
 # Change Working directory to Script directory
@@ -140,7 +151,7 @@ def main(argv):
         sys.exit(1)
     else:
         with f:
-            cfg = yaml.load(f)
+            cfg = yaml.full_load(f)
 
     #with open("conf/config.yaml", 'r') as ymlfile:
     #    cfg = yaml.load(ymlfile)
@@ -204,7 +215,7 @@ def main(argv):
         #Start Publisher Thread
         publish = MQTTPublisher(myqueue)
 
-    except Exception, e:
+    except Exception as e:
         logging.critical("Exception: " + str(e))
         sys.exit(1)
 
@@ -216,7 +227,7 @@ def main(argv):
         while True:
             time.sleep(1)
         broker.loop_stop()
-    except Exception, e:
+    except Exception as e:
         logging.critical("Exception: " + str(e))
         sys.exit(1)
 
