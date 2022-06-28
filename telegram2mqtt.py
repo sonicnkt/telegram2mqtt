@@ -11,8 +11,10 @@ from telegram.ext import CallbackContext, Updater, CommandHandler, MessageHandle
 # , ContextTypes, , 
 import paho.mqtt.client as mqtt
 from threading import Thread
+# import queue as Queue
 try:
     from queue import Queue # using Python 3
+    # from queue import * # using Python 3
 except ImportError:
     from Queue import Queue   # falls back to import from Python 2
 try:
@@ -163,6 +165,7 @@ def main(argv):
     # Config Parser
     try:
         f = open('conf/config.yaml', 'r', encoding="utf_8")
+        # f = open('config.yaml', 'r', encoding="utf_8")
     except IOError:
         print("Can't open config file!")
         sys.exit(1)
@@ -223,7 +226,7 @@ def main(argv):
         broker.on_disconnect = mqtt_on_disconnect
         broker.on_publish = mqtt_on_publish
         broker.on_subscribe = mqtt_on_subscribe
-        broker.on_log = on_log
+        # broker.on_log = on_log
         broker.username_pw_set(cfg["mqtt"]["username"], cfg["mqtt"]["password"])
         broker.connect(cfg["mqtt"]["domain"], cfg["mqtt"]["port"],cfg["mqtt"]["keepalive"])
 
