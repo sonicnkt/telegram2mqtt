@@ -220,6 +220,7 @@ def main(argv):
         broker = mqtt.Client( protocol=eval("mqtt." + cfg["mqtt"]["protocol"]))
         broker.reinitialise(client_id="", clean_session=True, userdata=None)
 
+
         # Assign event callbacks
         broker.on_message = mqtt_on_message
         broker.on_connect = mqtt_on_connect

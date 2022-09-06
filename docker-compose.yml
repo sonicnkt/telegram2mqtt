@@ -1,0 +1,13 @@
+version: '3.5'
+services: 
+  telegram2mqtt:
+   build: ./app
+   #image: soflane/telegram2mqtt
+   container_name: telegram2mqtt
+   hostname: telegram2mqtt
+   volumes:  
+     - /d/GitHub/telegram2mqtt/conf:/opt/tel2mqtt/conf
+   ports:
+     - 8000:8000
+   restart: unless-stopped
+   #command: ['start-dev', '--proxy edge']
