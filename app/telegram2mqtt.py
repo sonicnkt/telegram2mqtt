@@ -2,7 +2,7 @@
 #################################################
 ## Telegram Audio/Voice 2 MQTT/Home Assistant  ##
 #################################################
-import logging, time, sys, yaml, os, traceback
+import logging, time, sys, yaml, os, traceback, shutil
 
 from pydub import AudioSegment
 from encodings import utf_8
@@ -25,7 +25,6 @@ try:
     import socketserver as SocketServer # using Python 3
 except ImportError:
     import SocketServer   # falls back to import from Python 2
-
 
 # Change Working directory to Script directory
 abspath = os.path.abspath(__file__)
@@ -109,6 +108,14 @@ class TelegramBot(object):
 
     def text(self, update: Update, context: CallbackContext):
         # Add User ID translation
+        logging.debug("Payload TEXT: " + str(update.message.chat_id) )
+        logging.debug("Payload update.message.chat.id: " + str(update.message.chat.id))
+        logging.debug("Payload update.message.chat.linked_chat_id: " + str(update.message.chat.linked_chat_id))
+        logging.debug("Payload update.message.media_group_id: " + str(update.message.media_group_id))
+        logging.debug("Payload update.message.media_group_id: " + str(update.message.media_group_id))
+        logging.debug("Payload Message: " + str(update.message))
+        logging.debug("Payload update: " + str(update))
+        logging.debug("Payload msg chat: " + str(update.message.chat))
         user_id = update.message.from_user.id
         self.myqueue.put({"type" : "text",
                           "user" : str(user_id),
@@ -164,6 +171,11 @@ def main(argv):
 
     # Config Parser
     try:
+        configfile = "conf/config.yaml"
+        if not os.path.exists(configfile):
+            shutil.copyfile('/opt/tel2mqtt/sample/config.yaml', 'conf/config.yaml')
+            logging.error("Config file NOT FOUND. We generated one, you should complete it and run the app back")
+            exit(1)
         f = open('conf/config.yaml', 'r', encoding="utf_8")
         # f = open('config.yaml', 'r', encoding="utf_8")
     except IOError:

@@ -1,15 +1,15 @@
 telegram:
-  api-token: "YOUR BOT TOKEN"
+  api-token: "xxxxxxxxxx:zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
 mqtt:
-  domain: "127.0.0.1" # IP/NAME of the MQTT Server 
+  domain: "192.168.1.x" # IP/NAME of the MQTT Server 
   port: 1883
   protocol: "MQTTv311" # Either "MQTTv31" or "MQTTv311"
-  username: "mqtt"
-  password: "mqtt@omv-nas"
+  username: "mqtt_username"
+  password: "mqtt_password"
   topic: "telebot"
   keepalive: 60
 webserver:
-  domain: "192.168.1.8" # IP of where the webserver is reachable by the Mediaplayer in HA
+  domain: "192.168.1.x" # IP of where the webserver is reachable by the Mediaplayer in HA
   port: 8000
 other:
   loglevel: 3
@@ -17,4 +17,4 @@ other:
 allowed_contacts:
   # user id: Display Name
   # Only listed Contacts are allowed to send voice messages
-  12345678: "Demo User"
+  555555555: "trusted-contact-name"

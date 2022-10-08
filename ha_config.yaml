@@ -21,6 +21,10 @@ sensor:
     name: "telegram_msg_content"
     state_topic: "telebot"
     value_template: '{{ value_json.content }}'
+  - platform: mqtt
+    name: "telegram_msg_duration"
+    state_topic: "telebot"
+    value_template: '{{ value_json.duration }}'
 
 
 ##################################################
@@ -45,3 +49,48 @@ automation:
         data_template:
           media_content_id: >
             {{states('sensor.telegram_msg_content')}}
+
+
+##################################################
+## Automation made for a yamaha reciever
+##################################################       
+  - alias: Play Telegram Voice Message on Kodi
+    trigger:
+      platform: state
+      entity_id: sensor.telegram_msg_new
+      to: "true"
+    condition:
+      - condition: state
+        entity_id: sensor.telegram_msg_type
+        state: 'voice'
+    action:
+      - variables:
+          time: "{{ int(states('sensor.telegram_msg_duration')) }}"
+          file: "{{states('sensor.telegram_msg_content')}}"
+      - service: scene.create
+        data:
+          scene_id: amplisalon_voice_revert
+          snapshot_entities: media_player.yamaha_reciever
+      - service: media_player.turn_on
+        target:
+          entity_id: media_player.yamaha_reciever
+      - delay: 8
+      - service: media_player.play_media
+        data:
+          entity_id: media_player.yamaha_reciever
+          #media_content_type: audio
+          media_content_type: music
+        data_template:
+          media_content_id: >
+            {{ file }}
+      - service: media_player.volume_set
+        data:
+          volume_level: 0.60
+        target:
+          entity_id: media_player.yamaha_reciever
+      - delay: "{{ time }}"
+      - delay: 2
+      - service: scene.turn_on
+        data:
+          entity_id: scene.amplisalon_voice_revert
+
