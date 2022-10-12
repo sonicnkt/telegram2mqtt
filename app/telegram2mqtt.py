@@ -2,17 +2,29 @@
 #################################################
 ## Telegram Audio/Voice 2 MQTT/Home Assistant  ##
 #################################################
+import logging, time, sys, yaml, os, traceback, shutil
 
-from telegram.ext import CommandHandler
-from telegram.ext import MessageHandler, Filters
-from telegram.ext import Updater
+from pydub import AudioSegment
+from encodings import utf_8
+from telegram import ForceReply, Update
+from telegram.ext import CallbackContext, Updater, CommandHandler, MessageHandler, Filters
+# , ContextTypes, , 
 import paho.mqtt.client as mqtt
 from threading import Thread
-from Queue import Queue
-
-import logging, time, sys, yaml, os
-import SimpleHTTPServer, SocketServer
-
+# import queue as Queue
+try:
+    from queue import Queue # using Python 3
+    # from queue import * # using Python 3
+except ImportError:
+    from Queue import Queue   # falls back to import from Python 2
+try:
+    import http.server as SimpleHTTPServer # using Python 3
+except ImportError:
+    import SimpleHTTPServer   # falls back to import from Python 2
+try:
+    import socketserver as SocketServer # using Python 3
+except ImportError:
+    import SocketServer   # falls back to import from Python 2
 
 # Change Working directory to Script directory
 abspath = os.path.abspath(__file__)
@@ -21,8 +33,18 @@ os.chdir(dname)
 
 
 # Callback for an established MQTT broker connection
-def mqtt_connect(broker, userdata, flags, rc):
+def mqtt_on_connect(broker, userdata, flags, rc):
     logging.info("MQTT: Connected with the broker...")
+def mqtt_on_disconnect(broker, userdata, rc):
+    logging.info("MQTT: DISCONNECTED !!!!!!!!!!!!!!!!!!")
+def mqtt_on_message(client, obj, msg):
+    logging.info("Message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+def mqtt_on_publish(client, obj, mid):
+    logging.debug("mid: " + str(mid))
+def mqtt_on_subscribe(client, obj, mid, granted_qos):
+    logging.debug("Subscribed: " + str(mid) + " " + str(granted_qos))
+def mqtt_on_log(client, obj, level, string):
+    logging.debug("Printed: " + string)
 
 # MQTT Publisher Thread
 class MQTTPublisher(object):
@@ -80,40 +102,55 @@ class TelegramBot(object):
         thread2.daemon = True  # Daemonize thread
         thread2.start()  # Start the execution
 
-    def start(self, bot, update):
-        bot.send_message(chat_id=update.message.chat_id, text="I'm a bot, please talk to me!")
+    def start(self, update: Update, context: CallbackContext):
+        """Send a message when the command /start is issued."""
+        context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
-    def text(self, bot, update):
+    def text(self, update: Update, context: CallbackContext):
         # Add User ID translation
+        logging.debug("Payload TEXT: " + str(update.message.chat_id) )
+        logging.debug("Payload update.message.chat.id: " + str(update.message.chat.id))
+        logging.debug("Payload update.message.chat.linked_chat_id: " + str(update.message.chat.linked_chat_id))
+        logging.debug("Payload update.message.media_group_id: " + str(update.message.media_group_id))
+        logging.debug("Payload update.message.media_group_id: " + str(update.message.media_group_id))
+        logging.debug("Payload Message: " + str(update.message))
+        logging.debug("Payload update: " + str(update))
+        logging.debug("Payload msg chat: " + str(update.message.chat))
         user_id = update.message.from_user.id
         self.myqueue.put({"type" : "text",
                           "user" : str(user_id),
                           "content" : update.message.text,
                           "duration" : 0})
 
-    def voice(self, bot, update):
+    def voice(self, update: Update, context: CallbackContext):
         user_id = update.message.from_user.id
         if cfg["allowed_contacts"] and (user_id in cfg["allowed_contacts"].keys()):
             username = cfg["allowed_contacts"][user_id]
             # Downloading Voice
-            newfile = bot.get_file(update.message.voice.file_id)
-            filename = time.strftime("%Y-%m-%d_%H-%M") + '_' + str(user_id) + '.ogg'
-            newfile.download(filename)
-            fileurl = "http://" + self.web_name + ":{}/".format(str(self.web_port)) + filename
+            newfile = context.bot.get_file(update.message.voice.file_id)
+            str_filename = time.strftime("%Y-%m-%d_%H-%M") + '_' + str(user_id) 
+            input_file = str_filename + '.ogg'
+            output_file = str_filename + '.mp3'
+            newfile.download(input_file)
+            sound = AudioSegment.from_ogg(input_file)
+            sound.export(output_file, format="mp3")
+            fileurl = "http://" + self.web_name + ":{}/".format(str(self.web_port)) + output_file
             self.myqueue.put({"type": "voice",
                               "user": username,
                               "content": fileurl,
                               "duration": int(update.message.voice.duration)})
         else:
             logging.info("Voice Message rejected from user_id: {}".format(user_id))
+
     def run(self):
-        #logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+        logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
         self.updater = Updater(token=self.token)
         self.dispatcher = self.updater.dispatcher
 
         # Handler Define
+
         start_handler = CommandHandler('start', self.start)
-        log_handler = MessageHandler(Filters.text, self.text)
+        log_handler   = MessageHandler(Filters.text, self.text)
         voice_handler = MessageHandler(Filters.voice, self.voice)
 
         # Handler Registry
@@ -134,14 +171,19 @@ def main(argv):
 
     # Config Parser
     try:
-        f = open('conf/config.yaml', 'r')
+        configfile = "conf/config.yaml"
+        if not os.path.exists(configfile):
+            shutil.copyfile('/opt/tel2mqtt/sample/config.yaml', 'conf/config.yaml')
+            logging.error("Config file NOT FOUND. We generated one, you should complete it and run the app back")
+            exit(1)
+        f = open('conf/config.yaml', 'r', encoding="utf_8")
+        # f = open('config.yaml', 'r', encoding="utf_8")
     except IOError:
         print("Can't open config file!")
         sys.exit(1)
     else:
         with f:
-            cfg = yaml.load(f)
-
+            cfg = yaml.full_load(f) 
     #with open("conf/config.yaml", 'r') as ymlfile:
     #    cfg = yaml.load(ymlfile)
 
@@ -180,15 +222,29 @@ def main(argv):
 
 
     try:
-        # Handle mqtt connection and callbacks
-        broker = mqtt.Client(client_id="", clean_session=True, userdata=None, protocol=eval("mqtt." + cfg["mqtt"]["protocol"]))
-        broker.username_pw_set(cfg["mqtt"]["username"], password=cfg["mqtt"]["password"])
-        broker.on_connect = mqtt_connect
-        #broker.on_message = mqtt_message #Callback for Message Receiving, not used atm
-        broker.connect(cfg["mqtt"]["domain"], cfg["mqtt"]["port"], cfg["mqtt"]["keepalive"])
+        ## Handle mqtt connection and callbacks
+        #broker = mqtt.Client(client_id="", clean_session=True, userdata=None, protocol=eval("mqtt." + cfg["mqtt"]["protocol"]))
+        #broker.username_pw_set(cfg["mqtt"]["username"], password=cfg["mqtt"]["password"])
+        #broker.on_connect = mqtt_connect
+        ##broker.on_message = mqtt_message #Callback for Message Receiving, not used atm
+        #broker.connect(cfg["mqtt"]["domain"], cfg["mqtt"]["port"], cfg["mqtt"]["keepalive"])
+
+        broker = mqtt.Client( protocol=eval("mqtt." + cfg["mqtt"]["protocol"]))
+        broker.reinitialise(client_id="", clean_session=True, userdata=None)
+
+
+        # Assign event callbacks
+        broker.on_message = mqtt_on_message
+        broker.on_connect = mqtt_on_connect
+        broker.on_disconnect = mqtt_on_disconnect
+        broker.on_publish = mqtt_on_publish
+        broker.on_subscribe = mqtt_on_subscribe
+        # broker.on_log = on_log
+        broker.username_pw_set(cfg["mqtt"]["username"], cfg["mqtt"]["password"])
+        broker.connect(cfg["mqtt"]["domain"], cfg["mqtt"]["port"],cfg["mqtt"]["keepalive"])
+
 
         myqueue = Queue()
-
 
         #Creating and changing to downloader/webserver directory
         workdir = "conf/web/"
@@ -200,11 +256,10 @@ def main(argv):
         myweb = HttpServer(port=cfg["webserver"]["port"])
         # Start Telegram Bot Thread
         bot = TelegramBot(cfg["telegram"]["api-token"], myqueue, cfg["webserver"]["port"], cfg["webserver"]["domain"])
-
         #Start Publisher Thread
         publish = MQTTPublisher(myqueue)
 
-    except Exception, e:
+    except Exception as e:
         logging.critical("Exception: " + str(e))
         sys.exit(1)
 
@@ -216,7 +271,7 @@ def main(argv):
         while True:
             time.sleep(1)
         broker.loop_stop()
-    except Exception, e:
+    except Exception as e:
         logging.critical("Exception: " + str(e))
         sys.exit(1)
 

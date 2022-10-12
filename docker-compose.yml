@@ -1,0 +1,12 @@
+version: '3.5'
+services: 
+  telegram2mqtt:
+  #  build: ./app
+   image: soflane/telegram2mqtt:multiarch
+   container_name: telegram2mqtt
+   hostname: telegram2mqtt
+   volumes:  
+     - /path/to/your/config:/opt/tel2mqtt/conf
+   ports:
+     - 8000:8000
+   restart: unless-stopped
